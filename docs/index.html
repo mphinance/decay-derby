@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decay Derby — CSP/Wheel Tracker</title>
+  <meta name="description" content="Daily Cash Secured Put screener and Wheel strategy tracker. Track premiums, manage allocation, and run the wheel.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="header-brand">
+          <span class="header-icon">🎰</span>
+          <div>
+            <div class="header-title">Decay Derby</div>
+            <div class="header-subtitle">CSP / Wheel Tracker — Momentum Phinance</div>
+          </div>
+        </div>
+        <div class="header-links">
+          <a href="https://mphinance.substack.com" target="_blank">📰 Substack</a>
+          <a href="https://www.traderdaddy.pro/screeners/csp-wheel" target="_blank">🔍 TDPro</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="tab-btn" data-tab="picks">🎯 Today's Picks</button>
+      <button class="tab-btn" data-tab="trades">📋 Trade Log</button>
+      <button class="tab-btn" data-tab="export">📝 Substack</button>
+    </nav>
+
+    <!-- ═══ TAB: DASHBOARD ═══ -->
+    <div class="tab-content active" id="tab-dashboard">
+      <!-- Portfolio Metrics -->
+      <div class="metrics-grid" id="dashMetrics"></div>
+
+      <!-- Sector Allocation -->
+      <div id="sectorAllocation"></div>
+
+      <!-- Active Positions -->
+      <div class="section-header">
+        <span class="section-title">🎡 Active Wheels</span>
+        <span class="section-count" id="activeCount"></span>
+      </div>
+      <div id="activePositions"></div>
+
+      <!-- Weekly Summary -->
+      <div class="section-header" style="margin-top:24px">
+        <span class="section-title">📅 This Week</span>
+      </div>
+      <div id="weeklySummary"></div>
+    </div>
+
+    <!-- ═══ TAB: TODAY'S PICKS ═══ -->
+    <div class="tab-content" id="tab-picks">
+      <div class="section-header">
+        <span class="section-title">🎯 Screener Results</span>
+        <div class="date-nav">
+          <button onclick="App.prevDay()">◀</button>
+          <span class="current-date" id="picksDate"></span>
+          <button onclick="App.nextDay()">▶</button>
+        </div>
+      </div>
+
+      <!-- Capital Info Bar -->
+      <div id="capitalBar" style="margin-bottom:16px"></div>
+
+      <!-- Picks Table -->
+      <div id="picksTable"></div>
+    </div>
+
+    <!-- ═══ TAB: TRADE LOG ═══ -->
+    <div class="tab-content" id="tab-trades">
+      <div class="section-header">
+        <span class="section-title">📋 Trade Journal</span>
+        <div>
+          <button class="btn btn-primary btn-sm" onclick="Tracker.showManualEntry()">+ Add Trade</button>
+          <button class="btn btn-ghost btn-sm" onclick="Tracker.exportTrades()">⬇ Export</button>
+          <button class="btn btn-ghost btn-sm" onclick="Tracker.importTrades()">⬆ Import</button>
+        </div>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div style="display:flex;gap:6px;margin-bottom:16px">
+        <button class="btn btn-sm trade-filter active" data-filter="all">All</button>
+        <button class="btn btn-sm trade-filter" data-filter="active">Active</button>
+        <button class="btn btn-sm trade-filter" data-filter="won">Won</button>
+        <button class="btn btn-sm trade-filter" data-filter="assigned">Assigned</button>
+        <button class="btn btn-sm trade-filter" data-filter="loss">Loss</button>
+      </div>
+
+      <div id="tradeLog"></div>
+    </div>
+
+    <!-- ═══ TAB: SUBSTACK EXPORT ═══ -->
+    <div class="tab-content" id="tab-export">
+      <div class="section-header">
+        <span class="section-title">📝 Substack Post Generator</span>
+      </div>
+      <div id="substackExport"></div>
+    </div>
+
+    <!-- Trade Entry Modal -->
+    <div class="modal-overlay" id="tradeModal">
+      <div class="modal">
+        <button class="modal-close" onclick="Tracker.closeModal()">✕</button>
+        <div class="modal-title">📝 Confirm Trade</div>
+        <div id="tradeForm"></div>
+      </div>
+    </div>
+
+    <!-- Trade Action Modal (expire/assign/close) -->
+    <div class="modal-overlay" id="actionModal">
+      <div class="modal">
+        <button class="modal-close" onclick="Tracker.closeActionModal()">✕</button>
+        <div class="modal-title" id="actionModalTitle">Update Trade</div>
+        <div id="actionForm"></div>
+      </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="importModal">
+      <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('importModal').classList.remove('active')">✕</button>
+        <div class="modal-title">⬆ Import Trade Data</div>
+        <div class="form-group">
+          <label class="form-label">Paste JSON</label>
+          <textarea id="importData" class="form-input" rows="10" placeholder='Paste exported JSON here...'></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="Tracker.doImport()">Import</button>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>Decay Derby · <a href="https://mphinance.com">Momentum Phinance LLC</a> · Not Financial Advice</p>
+    </footer>
+  </div>
+
+  <script src="js/portfolio.js"></script>
+  <script src="js/tracker.js"></script>
+  <script src="js/screener.js"></script>
+  <script src="js/substack.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
