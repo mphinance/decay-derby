@@ -3,15 +3,57 @@
  */
 const Tracker = (() => {
   const STORAGE_KEY = 'decay_derby_trades';
+  const BACKUP_KEY = 'decay_derby_trades_backup';
+  let mutationCount = 0;
 
   function getTrades() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch { return []; }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        console.warn('Trades data corrupted (not array), restoring from backup');
+        return _restoreFromBackup();
+      }
+      return parsed;
+    } catch (e) {
+      console.error('Failed to read trades:', e);
+      return _restoreFromBackup();
+    }
+  }
+
+  function _restoreFromBackup() {
+    try {
+      const backup = localStorage.getItem(BACKUP_KEY);
+      if (backup) {
+        const data = JSON.parse(backup);
+        if (Array.isArray(data)) {
+          localStorage.setItem(STORAGE_KEY, backup);
+          console.info('Restored', data.length, 'trades from backup');
+          return data;
+        }
+      }
+    } catch (e) { console.error('Backup also corrupted:', e); }
+    return [];
   }
 
   function saveTrades(trades) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+    try {
+      const json = JSON.stringify(trades);
+      localStorage.setItem(STORAGE_KEY, json);
+
+      // Auto-backup every 5 mutations
+      mutationCount++;
+      if (mutationCount % 5 === 0) {
+        localStorage.setItem(BACKUP_KEY, json);
+        console.info(`Auto-backup saved (${trades.length} trades, mutation #${mutationCount})`);
+      }
+    } catch (e) {
+      console.error('Failed to save trades:', e);
+      if (e.name === 'QuotaExceededError') {
+        alert('localStorage is full! Please export your trades (Trade Log → Export) and clear some browser data.');
+      }
+    }
   }
 
   function addTrade(trade) {

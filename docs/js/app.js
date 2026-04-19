@@ -2,13 +2,21 @@
  * App — Main controller, tab routing, dashboard rendering
  */
 const App = (() => {
+  // Timezone-safe local date formatting (avoids UTC conversion bugs at evening hours)
+  function localDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // Snap to nearest weekday (forward to Monday on weekends)
   function nearestWeekday() {
     const d = new Date();
-    const day = d.getDay();
-    if (day === 0) d.setDate(d.getDate() + 1); // Sunday → Monday
-    if (day === 6) d.setDate(d.getDate() + 2); // Saturday → Monday
-    return d.toISOString().slice(0, 10);
+    const dow = d.getDay();
+    if (dow === 0) d.setDate(d.getDate() + 1); // Sunday → Monday
+    if (dow === 6) d.setDate(d.getDate() + 2); // Saturday → Monday
+    return localDateStr(d);
   }
   let currentDate = nearestWeekday();
 
@@ -53,7 +61,7 @@ const App = (() => {
     d.setDate(d.getDate() - 1);
     // Skip weekends
     while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
-    currentDate = d.toISOString().slice(0, 10);
+    currentDate = localDateStr(d);
     loadPicks();
   }
 
@@ -61,7 +69,7 @@ const App = (() => {
     const d = new Date(currentDate + 'T12:00:00');
     d.setDate(d.getDate() + 1);
     while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-    currentDate = d.toISOString().slice(0, 10);
+    currentDate = localDateStr(d);
     loadPicks();
   }
 
@@ -204,6 +212,43 @@ const App = (() => {
     const weekWins = weekTrades.filter(t => t.status === 'won');
     const weekPremium = weekWins.reduce((s, t) => s + t.premium * (t.contracts || 1) * 100, 0);
 
+    // Build cumulative premium mini-chart
+    const allTrades = Tracker.getTrades()
+      .filter(t => t.status === 'won' || t.status === 'closed')
+      .sort((a, b) => (a.closedAt || a.openedAt).localeCompare(b.closedAt || b.openedAt));
+
+    let chartHtml = '';
+    if (allTrades.length > 0) {
+      let cumulative = 0;
+      const maxTarget = Math.max(Portfolio.PREMIUM_TARGET, state.premiumCollected * 1.2);
+      const bars = allTrades.map(t => {
+        const prem = t.premium * (t.contracts || 1) * 100;
+        cumulative += prem;
+        const heightPct = Math.min((cumulative / maxTarget) * 100, 100);
+        const date = (t.closedAt || t.openedAt || '').slice(5, 10);
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:20px;max-width:40px">
+          <div style="font-size:0.5rem;color:var(--text-muted);margin-bottom:2px">${Portfolio.formatCurrency(cumulative)}</div>
+          <div style="width:100%;background:var(--bg-dark);border-radius:2px;height:60px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:${heightPct}%;background:linear-gradient(180deg,var(--green),var(--cyan));border-radius:2px;min-height:2px"></div>
+          </div>
+          <div style="font-size:0.45rem;color:var(--text-muted);margin-top:2px">${t.symbol}</div>
+        </div>`;
+      });
+
+      chartHtml = `
+        <div class="metric-card accent-green" style="margin-top:12px">
+          <div class="metric-label">Cumulative Premium</div>
+          <div style="display:flex;gap:4px;align-items:flex-end;margin-top:8px;padding:0 4px">
+            ${bars.join('')}
+          </div>
+          <div style="margin-top:6px;height:1px;background:var(--border)"></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-muted);margin-top:4px">
+            <span>$0</span>
+            <span style="color:var(--gold)">Target: ${Portfolio.formatCurrency(Portfolio.PREMIUM_TARGET)}</span>
+          </div>
+        </div>`;
+    }
+
     document.getElementById('weeklySummary').innerHTML = `
       <div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
         <div class="metric-card accent-green">
@@ -222,7 +267,8 @@ const App = (() => {
           <div class="metric-label">Week ROC</div>
           <div class="metric-value value-positive">${Portfolio.formatPct((weekPremium / Portfolio.STARTING_CAPITAL) * 100)}</div>
         </div>
-      </div>`;
+      </div>
+      ${chartHtml}`;
   }
 
   // Init on load

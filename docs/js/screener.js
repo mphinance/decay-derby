@@ -1,10 +1,15 @@
 /**
  * Screener — Load daily picks JSON, display with capital-aware filtering
+ *
+ * Architect fixes applied:
+ * - Event delegation instead of inline onclick (XSS prevention)
+ * - Picks stored in module, referenced by index
  */
 const Screener = (() => {
   let currentData = null;
   let sortCol = 'score';
   let sortDir = 'desc';
+  let sortedPicks = []; // Store sorted picks for event delegation
 
   async function loadDay(dateStr) {
     try {
@@ -12,7 +17,10 @@ const Screener = (() => {
       if (!resp.ok) return null;
       currentData = await resp.json();
       return currentData;
-    } catch { return null; }
+    } catch (e) {
+      console.warn('Screener load failed:', e);
+      return null;
+    }
   }
 
   function render(data) {
@@ -29,13 +37,13 @@ const Screener = (() => {
     }
 
     const state = Portfolio.getState();
-    const { sectors } = Portfolio.getSectorExposure();
-    let picks = [...data.picks];
+    sortedPicks = [...data.picks];
 
     // Sort
-    picks.sort((a, b) => {
+    sortedPicks.sort((a, b) => {
       const va = a[sortCol] ?? 0;
       const vb = b[sortCol] ?? 0;
+      if (typeof va === 'string') return sortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
       return sortDir === 'desc' ? vb - va : va - vb;
     });
 
@@ -66,8 +74,10 @@ const Screener = (() => {
       return sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
     };
 
+    const trades = Tracker.getTrades();
+
     let html = `
-      <table class="data-table">
+      <table class="data-table" id="picksDataTable">
         <thead>
           <tr>
             <th class="${thClass('score')}" data-sort="score">Score</th>
@@ -86,10 +96,10 @@ const Screener = (() => {
         </thead>
         <tbody>`;
 
-    picks.forEach(p => {
+    sortedPicks.forEach((p, idx) => {
       const affordable = Portfolio.canAfford(p.capital_required);
       const sectorHeavy = Portfolio.isSectorHeavy(p.sector);
-      const alreadyTraded = Tracker.getTrades().some(t =>
+      const alreadyTraded = trades.some(t =>
         t.symbol === p.symbol && t.status === 'active' && t.expiry === p.expiry
       );
       const allocPct = ((p.capital_required / Portfolio.STARTING_CAPITAL) * 100).toFixed(1);
@@ -125,7 +135,7 @@ const Screener = (() => {
           <td>${allocPct}%</td>
           <td>
             ${affordable && !alreadyTraded
-              ? `<button class="btn btn-success btn-sm" onclick='Screener.sellPut(${JSON.stringify(p).replace(/'/g, "\\'")})'> Sell</button>`
+              ? `<button class="btn btn-success btn-sm" data-sell-idx="${idx}" type="button">✅ Sell</button>`
               : alreadyTraded
                 ? '<span style="color:var(--green);font-size:0.65rem">Sold</span>'
                 : '<span style="color:var(--text-muted);font-size:0.65rem">Over cap</span>'
@@ -143,9 +153,12 @@ const Screener = (() => {
 
     document.getElementById('picksTable').innerHTML = html;
 
-    // Attach sort handlers
-    document.querySelectorAll('#tab-picks .data-table thead th[data-sort]').forEach(th => {
-      th.addEventListener('click', () => {
+    // Event delegation: sort headers
+    const table = document.getElementById('picksDataTable');
+    if (table) {
+      table.querySelector('thead').addEventListener('click', (e) => {
+        const th = e.target.closest('th[data-sort]');
+        if (!th) return;
         const col = th.dataset.sort;
         if (sortCol === col) {
           sortDir = sortDir === 'desc' ? 'asc' : 'desc';
@@ -155,14 +168,20 @@ const Screener = (() => {
         }
         render(data);
       });
-    });
-  }
 
-  function sellPut(pick) {
-    Tracker.openTradeFromPick(pick);
+      // Event delegation: sell buttons
+      table.querySelector('tbody').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-sell-idx]');
+        if (!btn) return;
+        const idx = parseInt(btn.dataset.sellIdx);
+        if (sortedPicks[idx]) {
+          Tracker.openTradeFromPick(sortedPicks[idx]);
+        }
+      });
+    }
   }
 
   function getData() { return currentData; }
 
-  return { loadDay, render, sellPut, getData };
+  return { loadDay, render, getData };
 })();
