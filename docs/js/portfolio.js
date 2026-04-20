@@ -40,8 +40,13 @@ const Portfolio = (() => {
     const allocationPct = (capitalDeployed / STARTING_CAPITAL) * 100;
 
     const premiumCollected = trades
-      .filter(t => t.status === 'won' || t.status === 'closed')
-      .reduce((sum, t) => sum + (t.premium * (t.contracts || 1) * 100), 0);
+      .filter(t => ['won', 'closed', 'assigned'].includes(t.status))
+      .reduce((sum, t) => {
+        if (t.pnl !== undefined) return sum + t.pnl;
+        // Fallback for older trades without pnl calculated
+        const closeCost = t.closePrice ? (t.closePrice * (t.contracts || 1) * 100) : 0;
+        return sum + (t.premium * (t.contracts || 1) * 100) - closeCost - (t.fees || 0);
+      }, 0);
 
     const premiumActive = active
       .filter(t => t.type === 'CSP')

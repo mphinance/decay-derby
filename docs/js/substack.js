@@ -70,23 +70,14 @@ const Substack = (() => {
       post += `🏆 WEEKLY TARGET HIT! ${Portfolio.formatCurrency(state.premiumCollected)} collected (${state.weeklyROC ? state.weeklyROC.toFixed(2) : '?'}% ROC). Pausing to reassess.\n\n`;
     }
 
-    post += `---\n\nToday's Picks (from TDPro CSP Screener) — ALL FREE THIS WEEK 🎉\n\n`;
-
-    picks.forEach((p, i) => {
-      const collateral = p.collateral || (p.strike * 100);
-      post += `${i + 1}. ${p.symbol} — $${p.price.toFixed(2)}\n`;
-      post += `   Sell ${p.strike} Put, exp ${p.expiry} (${p.dte} DTE)\n`;
-      post += `   Premium: $${p.premium.toFixed(2)} | ROC: ${p.weekly_roc.toFixed(2)}%/wk | Collateral: $${collateral.toFixed(0)}\n`;
-      post += `   Score: ${p.score} | Grade: ${p.grade} | RSI: ${p.rsi.toFixed(0)} | IV: ${p.iv || '?'}% | Sector: ${p.sector}\n\n`;
-    });
-
     post += `---\n\n`;
 
     // Active positions
     if (state.activeTrades.length > 0) {
       post += `Active Positions\n\n`;
       state.activeTrades.forEach(t => {
-        post += `• ${t.symbol} ${t.strike}P exp ${t.expiry} — $${(t.premium * 100).toFixed(0)} premium (${((t.premium * 100 / t.collateral) * 100).toFixed(1)}% ROC)\n`;
+        const netPrem = (t.premium * 100 * (t.contracts || 1)) - (t.fees || 0);
+        post += `• ${t.contracts || 1}x ${t.symbol} ${t.strike}P exp ${t.expiry} — $${netPrem.toFixed(0)} premium (${((netPrem / t.collateral) * 100).toFixed(1)}% ROC)\n`;
       });
       post += `\n`;
     }
@@ -98,10 +89,21 @@ const Substack = (() => {
       post += `This Week's Results\n\n`;
       recentClosed.forEach(t => {
         const icon = t.status === 'won' ? '✅' : t.status === 'assigned' ? '📦' : '❌';
-        post += `${icon} ${t.symbol} ${t.strike}P — ${t.status.toUpperCase()}\n`;
+        const pnl = t.pnl !== undefined ? t.pnl : ((t.premium * 100 * (t.contracts || 1)) - (t.closePrice ? t.closePrice * 100 * (t.contracts || 1) : 0) - (t.fees || 0));
+        post += `${icon} ${t.contracts || 1}x ${t.symbol} ${t.strike}P — ${t.status.toUpperCase()} (${pnl >= 0 ? '+' : ''}${Portfolio.formatCurrency(pnl)})\n`;
       });
       post += `\n`;
     }
+
+    post += `---\n\nToday's Picks (from TDPro CSP Screener) — ALL FREE THIS WEEK 🎉\n\n`;
+
+    picks.forEach((p, i) => {
+      const collateral = p.collateral || (p.strike * 100);
+      post += `${i + 1}. ${p.symbol} — $${p.price.toFixed(2)}\n`;
+      post += `   Sell ${p.strike} Put, exp ${p.expiry} (${p.dte} DTE)\n`;
+      post += `   Premium: $${p.premium.toFixed(2)} | ROC: ${p.weekly_roc.toFixed(2)}%/wk | Collateral: $${collateral.toFixed(0)}\n`;
+      post += `   Score: ${p.score} | Grade: ${p.grade} | RSI: ${p.rsi.toFixed(0)} | IV: ${p.iv || '?'}% | Sector: ${p.sector}\n\n`;
+    });
 
     post += `---\n\nNot financial advice. $10K port, selling puts, tracking the wheel.\nFollow along at traderdaddy.pro\n`;
 

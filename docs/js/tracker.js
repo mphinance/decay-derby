@@ -62,7 +62,8 @@ const Tracker = (() => {
     trade.openedAt = new Date().toISOString();
     trade.status = 'active';
     trade.type = trade.type || 'CSP';
-    trade.contracts = trade.contracts || 1;
+    trade.contracts = parseInt(trade.contracts) || 1;
+    trade.fees = parseFloat(trade.fees) || 0;
     trade.collateral = trade.strike * 100 * trade.contracts;
     trades.push(trade);
     saveTrades(trades);
@@ -85,22 +86,28 @@ const Tracker = (() => {
 
   // State transitions
   function expireTrade(id) {
+    const trade = getTrades().find(t => t.id === id);
+    if (!trade) return null;
+    const pnl = (trade.premium * 100 * trade.contracts) - (trade.fees || 0);
     return updateTrade(id, {
       status: 'won',
       closedAt: new Date().toISOString(),
       closeReason: 'expired',
+      pnl,
     });
   }
 
-  function closeTrade(id, closePrice) {
+  function closeTrade(id, closePrice, closeFees) {
     const trade = getTrades().find(t => t.id === id);
     if (!trade) return null;
-    const pnl = (trade.premium - closePrice) * 100 * (trade.contracts || 1);
+    const totalFees = (trade.fees || 0) + (closeFees || 0);
+    const pnl = ((trade.premium - closePrice) * 100 * trade.contracts) - totalFees;
     return updateTrade(id, {
       status: pnl >= 0 ? 'won' : 'loss',
       closedAt: new Date().toISOString(),
       closeReason: 'closed',
       closePrice,
+      fees: totalFees,
       pnl,
     });
   }
@@ -109,11 +116,14 @@ const Tracker = (() => {
     const trade = getTrades().find(t => t.id === id);
     if (!trade) return null;
 
+    const pnl = (trade.premium * 100 * trade.contracts) - (trade.fees || 0);
+    
     // Mark CSP as assigned
     updateTrade(id, {
       status: 'assigned',
       closedAt: new Date().toISOString(),
       closeReason: 'assigned',
+      pnl,
     });
 
     // Auto-transition: open Covered Call template for this symbol
@@ -245,8 +255,12 @@ const Tracker = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Contracts</label>
-          <input type="number" class="form-input" id="f-contracts" value="1" min="1" max="10">
+          <input type="number" class="form-input" id="f-contracts" value="1" min="1" max="100">
         </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Fees (total, e.g. $0.65)</label>
+        <input type="number" class="form-input" id="f-fees" value="0.65" step="0.01">
       </div>
       <div class="form-group">
         <label class="form-label">Collateral Required</label>
@@ -283,13 +297,14 @@ const Tracker = (() => {
     const premium = parseFloat(form.querySelector('#f-premium').value);
     const expiry = form.querySelector('#f-expiry').value;
     const contracts = parseInt(form.querySelector('#f-contracts').value) || 1;
+    const fees = parseFloat(form.querySelector('#f-fees').value) || 0;
 
     if (!strike || !premium || !expiry) {
       alert('Fill in all fields');
       return;
     }
 
-    addTrade({ symbol, sector, name, strike, premium, expiry, contracts });
+    addTrade({ symbol, sector, name, strike, premium, expiry, contracts, fees });
     closeModal();
     App.refresh();
   }
@@ -329,9 +344,15 @@ const Tracker = (() => {
         </button>
       </div>
       <div id="closePriceSection" style="display:none;margin-top:16px">
-        <div class="form-group">
-          <label class="form-label">Close Price (per share)</label>
-          <input type="number" class="form-input" id="f-close-price" step="0.01" placeholder="0.05">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Close Price (per share)</label>
+            <input type="number" class="form-input" id="f-close-price" step="0.01" placeholder="0.05">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Close Fees</label>
+            <input type="number" class="form-input" id="f-close-fees" value="0.65" step="0.01">
+          </div>
         </div>
         <button class="btn btn-primary" onclick="Tracker.doClose('${tradeId}')">Confirm Close</button>
       </div>
@@ -346,8 +367,9 @@ const Tracker = (() => {
 
   function doClose(tradeId) {
     const price = parseFloat(document.getElementById('f-close-price').value);
+    const fees = parseFloat(document.getElementById('f-close-fees').value) || 0;
     if (isNaN(price)) { alert('Enter close price'); return; }
-    closeTrade(tradeId, price);
+    closeTrade(tradeId, price, fees);
     closeActionModal();
     App.refresh();
   }
@@ -400,6 +422,10 @@ const Tracker = (() => {
           <input type="number" class="form-input" id="f-contracts" value="1" min="1">
         </div>
       </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Fees (total)</label>
+        <input type="number" class="form-input" id="f-fees" value="0.65" step="0.01">
+      </div>
       <div style="display:flex;gap:8px;margin-top:20px">
         <button class="btn btn-success" onclick="Tracker.confirmManual()">✅ Add Trade</button>
         <button class="btn btn-ghost" onclick="Tracker.closeModal()">Cancel</button>
@@ -416,13 +442,14 @@ const Tracker = (() => {
     const premium = parseFloat(form.querySelector('#f-premium').value);
     const expiry = form.querySelector('#f-expiry').value;
     const contracts = parseInt(form.querySelector('#f-contracts').value) || 1;
+    const fees = parseFloat(form.querySelector('#f-fees').value) || 0;
 
     if (!symbol || !strike || !premium || !expiry) {
       alert('Fill in all fields');
       return;
     }
 
-    addTrade({ symbol, sector, name: symbol, strike, premium, expiry, contracts });
+    addTrade({ symbol, sector, name: symbol, strike, premium, expiry, contracts, fees });
     closeModal();
     App.refresh();
   }
@@ -499,8 +526,16 @@ const Tracker = (() => {
               <span class="trade-meta-label">Strike</span> ${Portfolio.formatCurrency(t.strike)}
             </div>
             <div class="trade-meta-item">
-              <span class="trade-meta-label">Premium</span>
-              <span style="color:var(--green)">${premiumTotal}</span>
+              <span class="trade-meta-label">Contracts</span> ${t.contracts}
+            </div>
+            <div class="trade-meta-item">
+              <span class="trade-meta-label">${t.status==='active' ? 'Prem Collect' : 'Net P/L'}</span>
+              <span style="color:${t.status!=='active' && t.pnl<0 ? 'var(--red)' : 'var(--green)'}">
+                ${t.status==='active' ? premiumTotal : Portfolio.formatCurrency(t.pnl)}
+              </span>
+            </div>
+            <div class="trade-meta-item">
+              <span class="trade-meta-label">Fees</span> ${Portfolio.formatCurrency(t.fees || 0)}
             </div>
             <div class="trade-meta-item">
               <span class="trade-meta-label">Expiry</span> ${t.expiry}
