@@ -650,6 +650,7 @@ const Tracker = (() => {
           <div class="trade-actions" style="margin-top:12px;display:flex;gap:8px">
             ${t.status === 'active' ? `<button class="btn btn-sm btn-primary" onclick="Tracker.showActionModal('${t.id}')">Update</button>` : ''}
             <button class="btn btn-sm btn-ghost" onclick="Tracker.showEditModal('${t.id}')">Edit</button>
+            <button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="if(confirm('Are you sure you want to delete this trade?')) { Tracker.deleteTrade('${t.id}'); App.refresh(); }">🗑</button>
           </div>
         </div>`;
     }).join('');
