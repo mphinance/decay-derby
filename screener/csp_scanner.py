@@ -54,7 +54,7 @@ log = logging.getLogger("csp_scanner")
 
 # ─── config ───────────────────────────────────────────────────────────────────
 STARTING_CAPITAL = 10_000
-MIN_PRICE = 10.0
+MIN_PRICE = 9.50   # slightly below $10 so near-boundary stocks (e.g. ONDS) don't drop out
 MAX_PRICE = 30.0
 MIN_ALLOC = 0.10   # 10% of portfolio
 MAX_ALLOC = 0.30   # 30% of portfolio
