@@ -13,7 +13,31 @@ const Screener = (() => {
 
   async function loadDay(dateStr) {
     try {
-      const resp = await fetch(`data/daily/${dateStr}.json`);
+      let resp = await fetch(`data/daily/${dateStr}.json`);
+
+      // Fallback: if Monday and no data yet, try previous Friday
+      if (!resp.ok) {
+        const d = new Date(dateStr + 'T12:00:00');
+        if (d.getDay() === 1) { // Monday
+          d.setDate(d.getDate() - 3); // → Friday
+          const fri = App.localDateStr ? App.localDateStr(d) : dateStr;
+          resp = await fetch(`data/daily/${fri}.json`);
+        }
+      }
+
+      // Final fallback: try latest.json manifest
+      if (!resp.ok) {
+        try {
+          const latest = await fetch('data/latest.json');
+          if (latest.ok) {
+            const manifest = await latest.json();
+            if (manifest.latest && manifest.latest !== dateStr) {
+              resp = await fetch(`data/daily/${manifest.latest}.json`);
+            }
+          }
+        } catch (e) { /* no manifest available */ }
+      }
+
       if (!resp.ok) return null;
       currentData = await resp.json();
       return currentData;

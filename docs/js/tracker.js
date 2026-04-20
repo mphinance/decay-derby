@@ -106,16 +106,119 @@ const Tracker = (() => {
   }
 
   function assignTrade(id) {
-    return updateTrade(id, {
+    const trade = getTrades().find(t => t.id === id);
+    if (!trade) return null;
+
+    // Mark CSP as assigned
+    updateTrade(id, {
       status: 'assigned',
       closedAt: new Date().toISOString(),
       closeReason: 'assigned',
     });
+
+    // Auto-transition: open Covered Call template for this symbol
+    // Strike defaults to CSP strike (cost basis target)
+    _showCoveredCallTemplate(trade);
+
+    return trade;
+  }
+
+  function _showCoveredCallTemplate(cspTrade) {
+    const form = document.getElementById('tradeForm');
+    const suggestedStrike = cspTrade.strike; // Sell CC at cost basis
+
+    form.innerHTML = `
+      <div class="form-group">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:1.4rem;font-weight:700;color:var(--gold)">${cspTrade.symbol}</span>
+          <span class="trade-status status-assigned">ASSIGNED → CC</span>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:16px">
+          You now own 100 shares at $${cspTrade.strike.toFixed(2)}. Sell a covered call to start the wheel!
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CC Strike (cost basis: $${cspTrade.strike.toFixed(2)})</label>
+          <input type="number" class="form-input" id="f-cc-strike" value="${suggestedStrike}" step="0.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CC Premium (per share)</label>
+          <input type="number" class="form-input" id="f-cc-premium" step="0.01" placeholder="0.15">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Expiry</label>
+          <input type="date" class="form-input" id="f-cc-expiry">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contracts</label>
+          <input type="number" class="form-input" id="f-cc-contracts" value="${cspTrade.contracts || 1}" min="1" max="10">
+        </div>
+      </div>
+      <div class="form-hint" style="margin-bottom:12px">
+        The wheel continues! Sell the CC at or above your cost basis ($${cspTrade.strike.toFixed(2)}) to recover the assignment.
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" type="button" onclick="Tracker.confirmCoveredCall('${cspTrade.symbol}', '${cspTrade.sector}', '${cspTrade.name || cspTrade.symbol}')">🔄 Open Covered Call</button>
+        <button class="btn btn-ghost" type="button" onclick="Tracker.closeModal()">Skip for now</button>
+      </div>
+    `;
+
+    document.getElementById('tradeModal').classList.add('active');
+  }
+
+  function confirmCoveredCall(symbol, sector, name) {
+    const form = document.getElementById('tradeForm');
+    const strike = parseFloat(form.querySelector('#f-cc-strike').value);
+    const premium = parseFloat(form.querySelector('#f-cc-premium').value);
+    const expiry = form.querySelector('#f-cc-expiry').value;
+    const contracts = parseInt(form.querySelector('#f-cc-contracts').value) || 1;
+
+    if (!strike || !premium || !expiry) {
+      alert('Fill in strike, premium, and expiry');
+      return;
+    }
+
+    addTrade({
+      symbol, sector, name, strike, premium, expiry, contracts,
+      type: 'CC', // Covered Call
+    });
+    closeModal();
+    App.refresh();
   }
 
   // UI: Open trade from screener pick
   function openTradeFromPick(pick) {
     const form = document.getElementById('tradeForm');
+
+    // Pre-trade sector impact analysis
+    const { sectors, totalDeployed } = Portfolio.getSectorExposure();
+    const currentSectorCap = sectors[pick.sector]?.capital || 0;
+    const newCollateral = pick.strike * 100;
+    const projectedSectorCap = currentSectorCap + newCollateral;
+    const projectedTotalDeployed = totalDeployed + newCollateral;
+    const currentPct = totalDeployed > 0 ? (currentSectorCap / Portfolio.STARTING_CAPITAL) * 100 : 0;
+    const projectedPct = (projectedSectorCap / Portfolio.STARTING_CAPITAL) * 100;
+    const isHeavy = projectedPct > 40;
+
+    const sectorImpactHtml = `
+      <div style="padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:0.7rem;
+        background:${isHeavy ? 'var(--gold-bg)' : 'var(--bg-dark)'};
+        border:1px solid ${isHeavy ? 'rgba(240,180,0,0.3)' : 'var(--border)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--text-muted)">Sector Impact: <strong style="color:var(--text-primary)">${pick.sector}</strong></span>
+          <span style="color:${isHeavy ? 'var(--gold)' : 'var(--green)'}">
+            ${currentPct.toFixed(0)}% → ${projectedPct.toFixed(0)}%
+            ${isHeavy ? ' ⚠ HEAVY' : ' ✓'}
+          </span>
+        </div>
+        <div style="height:4px;background:var(--bg-deepest);border-radius:2px;margin-top:6px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(projectedPct, 100)}%;background:${isHeavy ? 'var(--gold)' : 'var(--green)'};border-radius:2px;transition:width 0.3s"></div>
+        </div>
+      </div>`;
+
     form.innerHTML = `
       <div class="form-group">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
@@ -124,6 +227,7 @@ const Tracker = (() => {
           ${Portfolio.isSectorHeavy(pick.sector) ? '<span class="sector-warn">⚠ Heavy</span>' : ''}
         </div>
       </div>
+      ${sectorImpactHtml}
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Strike</label>
@@ -156,8 +260,8 @@ const Tracker = (() => {
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:20px">
-        <button class="btn btn-success" onclick="Tracker.confirmTrade('${pick.symbol}', '${pick.sector}', '${pick.name}')">✅ I Sold This Put</button>
-        <button class="btn btn-ghost" onclick="Tracker.closeModal()">Cancel</button>
+        <button class="btn btn-success" type="button" onclick="Tracker.confirmTrade('${pick.symbol}', '${pick.sector}', '${pick.name}')">✅ I Sold This Put</button>
+        <button class="btn btn-ghost" type="button" onclick="Tracker.closeModal()">Cancel</button>
       </div>
     `;
 
@@ -422,7 +526,7 @@ const Tracker = (() => {
 
   return {
     getTrades, saveTrades, addTrade, updateTrade, deleteTrade,
-    expireTrade, closeTrade, assignTrade,
+    expireTrade, closeTrade, assignTrade, confirmCoveredCall,
     openTradeFromPick, confirmTrade, closeModal,
     showActionModal, showClosePrice, doClose, closeActionModal,
     showManualEntry, confirmManual,

@@ -274,5 +274,5 @@ const App = (() => {
   // Init on load
   document.addEventListener('DOMContentLoaded', init);
 
-  return { init, refresh, switchTab, prevDay, nextDay };
+  return { init, refresh, switchTab, prevDay, nextDay, localDateStr };
 })();
