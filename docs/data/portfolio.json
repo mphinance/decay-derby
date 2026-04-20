@@ -1,0 +1,51 @@
+[
+  {
+    "id": "onds_won_1",
+    "symbol": "ONDS",
+    "sector": "Electronic Technology",
+    "name": "ONDS",
+    "strike": 9.5,
+    "premium": 0.31,
+    "expiry": "2026-04-24",
+    "contracts": 1,
+    "fees": 0.69,
+    "openedAt": "2026-04-18T14:30:00.000Z",
+    "status": "won",
+    "type": "CSP",
+    "collateral": 950,
+    "closedAt": "2026-04-20T10:15:00.000Z",
+    "closeReason": "closed",
+    "closePrice": 0.13,
+    "pnl": 17.31
+  },
+  {
+    "id": "ag_open_1",
+    "symbol": "AG",
+    "sector": "Non-Energy Minerals",
+    "name": "AG",
+    "strike": 20,
+    "premium": 0.32,
+    "expiry": "2026-04-24",
+    "contracts": 1,
+    "fees": 0.67,
+    "openedAt": "2026-04-20T10:20:00.000Z",
+    "status": "active",
+    "type": "CSP",
+    "collateral": 2000
+  },
+  {
+    "id": "onds_open_1",
+    "symbol": "ONDS",
+    "sector": "Electronic Technology",
+    "name": "ONDS",
+    "strike": 9.5,
+    "premium": 0.31,
+    "expiry": "2026-04-24",
+    "contracts": 1,
+    "fees": 0.67,
+    "openedAt": "2026-04-20T10:25:00.000Z",
+    "status": "active",
+    "type": "CSP",
+    "collateral": 950
+  }
+]

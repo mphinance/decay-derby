@@ -537,7 +537,21 @@ const Tracker = (() => {
     App.refresh();
   }
 
-  // Export / Import
+  // Export / Import / Showcase
+  async function loadTDPortfolio() {
+    try {
+      const res = await fetch('data/portfolio.json');
+      if (!res.ok) throw new Error('Failed to load portfolio.json');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        saveTrades(data);
+        App.refresh();
+      }
+    } catch (e) {
+      console.warn('Could not load TD portfolio showcase:', e);
+    }
+  }
+
   function exportTrades() {
     const data = JSON.stringify(getTrades(), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
@@ -647,7 +661,7 @@ const Tracker = (() => {
     openTradeFromPick, confirmTrade, closeModal,
     showActionModal, showClosePrice, doClose, closeActionModal,
     showManualEntry, confirmManual, showEditModal, saveTradeEdit,
-    exportTrades, importTrades, doImport,
+    exportTrades, importTrades, doImport, loadTDPortfolio,
     renderTradeLog,
   };
 })();

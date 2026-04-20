@@ -35,6 +35,14 @@ const App = (() => {
       });
     });
 
+    // First time visitor auto-load portfolio showcase
+    if (!localStorage.getItem('decay_derby_visited')) {
+      localStorage.setItem('decay_derby_visited', 'true');
+      if (Tracker.getTrades().length === 0) {
+        Tracker.loadTDPortfolio();
+      }
+    }
+
     refresh();
   }
 
