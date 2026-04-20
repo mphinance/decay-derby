@@ -434,6 +434,89 @@ const Tracker = (() => {
     document.getElementById('tradeModal').classList.add('active');
   }
 
+  function showEditModal(tradeId) {
+    const trade = getTrades().find(t => t.id === tradeId);
+    if (!trade) return;
+
+    const form = document.getElementById('tradeForm');
+    form.innerHTML = `
+      <div style="font-size:1.2rem;font-weight:700;margin-bottom:16px;color:var(--gold)">Edit Trade: ${trade.symbol}</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Symbol</label>
+          <input type="text" class="form-input" id="f-symbol" value="${trade.symbol}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Strike</label>
+          <input type="number" class="form-input" id="f-strike" step="0.5" value="${trade.strike}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Upfront Premium</label>
+          <input type="number" class="form-input" id="f-premium" step="0.01" value="${trade.premium}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Total Fees</label>
+          <input type="number" class="form-input" id="f-fees" step="0.01" value="${trade.fees || 0}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Contracts</label>
+          <input type="number" class="form-input" id="f-contracts" min="1" value="${trade.contracts || 1}">
+        </div>
+        ${trade.closePrice !== undefined ? `
+        <div class="form-group">
+          <label class="form-label">Close Price</label>
+          <input type="number" class="form-input" id="f-close-price" step="0.01" value="${trade.closePrice}">
+        </div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button class="btn btn-success" type="button" onclick="Tracker.saveTradeEdit('${trade.id}')">💾 Save Changes</button>
+        <button class="btn btn-ghost" type="button" onclick="Tracker.closeModal()">Cancel</button>
+      </div>
+    `;
+    document.getElementById('tradeModal').classList.add('active');
+  }
+
+  function saveTradeEdit(id) {
+    const form = document.getElementById('tradeForm');
+    const symbol = form.querySelector('#f-symbol').value.toUpperCase();
+    const strike = parseFloat(form.querySelector('#f-strike').value);
+    const premium = parseFloat(form.querySelector('#f-premium').value);
+    const fees = parseFloat(form.querySelector('#f-fees').value) || 0;
+    const contracts = parseInt(form.querySelector('#f-contracts').value) || 1;
+    const closePriceInput = form.querySelector('#f-close-price');
+    
+    const trade = getTrades().find(t => t.id === id);
+    if (!trade) return;
+
+    trade.symbol = symbol;
+    trade.strike = strike;
+    trade.premium = premium;
+    trade.fees = fees;
+    trade.contracts = contracts;
+    trade.collateral = strike * 100 * contracts;
+    
+    if (closePriceInput) {
+      trade.closePrice = parseFloat(closePriceInput.value) || 0;
+    }
+    
+    if (trade.status !== 'active') {
+       if (trade.closeReason === 'closed') {
+         trade.pnl = ((trade.premium - trade.closePrice) * 100 * trade.contracts) - (trade.fees || 0);
+         trade.status = trade.pnl >= 0 ? 'won' : 'loss';
+       } else {
+         trade.pnl = (trade.premium * 100 * trade.contracts) - (trade.fees || 0);
+       }
+    }
+    
+    updateTrade(id, trade);
+    closeModal();
+    App.refresh();
+  }
+
   function confirmManual() {
     const form = document.getElementById('tradeForm');
     const symbol = form.querySelector('#f-symbol').value.toUpperCase();
@@ -550,11 +633,10 @@ const Tracker = (() => {
               <span class="trade-meta-label">Days</span> ${daysHeld}
             </div>
           </div>
-          ${t.status === 'active' ? `
-            <div class="trade-actions">
-              <button class="btn btn-sm btn-primary" onclick="Tracker.showActionModal('${t.id}')">Update</button>
-            </div>
-          ` : ''}
+          <div class="trade-actions" style="margin-top:12px;display:flex;gap:8px">
+            ${t.status === 'active' ? `<button class="btn btn-sm btn-primary" onclick="Tracker.showActionModal('${t.id}')">Update</button>` : ''}
+            <button class="btn btn-sm btn-ghost" onclick="Tracker.showEditModal('${t.id}')">Edit</button>
+          </div>
         </div>`;
     }).join('');
   }
@@ -564,7 +646,7 @@ const Tracker = (() => {
     expireTrade, closeTrade, assignTrade, confirmCoveredCall,
     openTradeFromPick, confirmTrade, closeModal,
     showActionModal, showClosePrice, doClose, closeActionModal,
-    showManualEntry, confirmManual,
+    showManualEntry, confirmManual, showEditModal, saveTradeEdit,
     exportTrades, importTrades, doImport,
     renderTradeLog,
   };
