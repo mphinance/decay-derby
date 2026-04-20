@@ -78,6 +78,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg-deepest);color:var(--tex
 .data-table thead th:hover{color:var(--text-secondary)}
 .data-table thead th.sorted-asc::after{content:' ▲';color:var(--cyan)}
 .data-table thead th.sorted-desc::after{content:' ▼';color:var(--cyan)}
+.filter-chip{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);border-radius:20px;padding:4px 12px;font-size:0.65rem;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px;white-space:nowrap}
+.filter-chip:hover{border-color:var(--cyan);color:var(--cyan)}
+.filter-chip.active{background:rgba(0,212,255,0.12);border-color:var(--cyan);color:var(--cyan)}
+select.filter-chip{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23718096'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}
 .data-table tbody tr{transition:background 0.15s}
 .data-table tbody tr:hover{background:var(--bg-card-hover)}
 .data-table tbody td{padding:10px 12px;border-bottom:1px solid rgba(30,30,50,0.3);font-variant-numeric:tabular-nums}

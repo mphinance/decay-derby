@@ -1,14 +1,13 @@
 /**
- * Screener — Load daily picks JSON, display with capital-aware filtering
- *
- * Architect fixes applied:
- * - Event delegation instead of inline onclick (XSS prevention)
- * - Picks stored in module, referenced by index
+ * Screener — loads daily JSON picks and renders the picks table
  */
 const Screener = (() => {
   let currentData = null;
   let sortCol = 'score';
   let sortDir = 'desc';
+  let filterGrade = 'all';   // 'all' | 'A' | 'B' | 'C'
+  let filterAffordable = false;
+  let filterSector = 'all';
   let sortedPicks = []; // Store sorted picks for event delegation
 
   async function loadDay(dateStr) {
@@ -61,7 +60,31 @@ const Screener = (() => {
     }
 
     const state = Portfolio.getState();
-    sortedPicks = [...data.picks];
+
+    // Weekly pause banner
+    const paused = state.premiumCollected >= Portfolio.PREMIUM_TARGET;
+    const pauseBanner = document.getElementById('pauseBanner');
+    if (pauseBanner) {
+      pauseBanner.style.display = paused ? 'block' : 'none';
+      if (paused) {
+        pauseBanner.innerHTML = `
+          <div style="background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,200,0,0.05));border:1px solid var(--gold);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.5rem">🏆</span>
+            <div>
+              <div style="font-weight:700;color:var(--gold)">Weekly target hit! ${Portfolio.formatCurrency(state.premiumCollected)} collected</div>
+              <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px">You've crossed the 1% threshold. Pause, reassess, and decide if you want to keep rolling or bank it.</div>
+            </div>
+          </div>`;
+      }
+    }
+
+    // Apply filters
+    sortedPicks = [...data.picks].filter(p => {
+      if (filterGrade !== 'all' && p.grade !== filterGrade) return false;
+      if (filterAffordable && !Portfolio.canAfford(p.collateral || p.strike * 100)) return false;
+      if (filterSector !== 'all' && p.sector !== filterSector) return false;
+      return true;
+    });
 
     // Sort
     sortedPicks.sort((a, b) => {
@@ -70,6 +93,9 @@ const Screener = (() => {
       if (typeof va === 'string') return sortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
       return sortDir === 'desc' ? vb - va : va - vb;
     });
+
+    // Unique sectors for filter
+    const sectors = ['all', ...new Set(data.picks.map(p => p.sector).filter(Boolean))];
 
     // Capital bar
     const size = Portfolio.suggestedPositionSize();
@@ -90,6 +116,20 @@ const Screener = (() => {
             <span style="color:var(--text-muted)">(10-30%)</span>
           </div>
         </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:0.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">FILTER:</span>
+        ${['all','A','B','C'].map(g => `<button class="filter-chip${filterGrade===g?' active':''}" data-filter-grade="${g}" type="button">${g==='all'?'All Grades':'Grade '+g}</button>`).join('')}
+        <span style="width:1px;height:16px;background:var(--border);margin:0 4px"></span>
+        <button class="filter-chip${filterAffordable?' active':''}" data-filter-affordable type="button">💰 Can Afford</button>
+        <span style="width:1px;height:16px;background:var(--border);margin:0 4px"></span>
+        <select class="filter-chip" id="sectorFilter" style="padding:3px 8px;cursor:pointer">
+          ${sectors.map(s => `<option value="${s}"${filterSector===s?' selected':''}>${s==='all'?'All Sectors':s.split(' ')[0]}</option>`).join('')}
+        </select>
+        ${filterGrade!=='all'||filterAffordable||filterSector!=='all'
+          ? `<button class="filter-chip" data-filter-clear type="button" style="color:var(--gold)">✕ Clear</button>`
+          : ''}
+        <span style="margin-left:auto;font-size:0.65rem;color:var(--text-muted)">${sortedPicks.length} of ${data.picks.length} picks</span>
       </div>`;
 
     // Picks table
@@ -171,8 +211,9 @@ const Screener = (() => {
     html += '</tbody></table>';
 
     // Summary line
+    const stats = data.stats || data.summary || {};
     html += `<div style="margin-top:12px;font-size:0.65rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">
-      ${data.summary.total_scanned.toLocaleString()} stocks scanned · ${data.picks.length} passed filters · Avg ROC: ${data.summary.avg_weekly_roc.toFixed(2)}%/wk
+      ${(stats.total_candidates || data.picks.length)} scanned · ${data.picks.length} passed filters · Avg ROC: ${(stats.avg_weekly_roc||0).toFixed(2)}%/wk
     </div>`;
 
     document.getElementById('picksTable').innerHTML = html;
@@ -202,6 +243,19 @@ const Screener = (() => {
           Tracker.openTradeFromPick(sortedPicks[idx]);
         }
       });
+    }
+
+    // Filter chip events (on the capitalBar container)
+    const bar = document.getElementById('capitalBar');
+    if (bar) {
+      bar.addEventListener('click', (e) => {
+        const g = e.target.closest('[data-filter-grade]');
+        if (g) { filterGrade = g.dataset.filterGrade; render(data); return; }
+        if (e.target.closest('[data-filter-affordable]')) { filterAffordable = !filterAffordable; render(data); return; }
+        if (e.target.closest('[data-filter-clear]')) { filterGrade='all'; filterAffordable=false; filterSector='all'; render(data); return; }
+      });
+      const sel = bar.querySelector('#sectorFilter');
+      if (sel) sel.addEventListener('change', (e) => { filterSector = e.target.value; render(data); });
     }
   }
 

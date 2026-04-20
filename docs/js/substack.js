@@ -8,50 +8,94 @@ const Substack = (() => {
     const data = Screener.getData();
     const container = document.getElementById('substackExport');
 
-    const dateStr = data ? data.date : new Date().toISOString().slice(0, 10);
-    const picks = data ? data.picks.slice(0, 5) : [];
+    const dateStr = data ? data.date : App.localDateStr();
+    const picks = data ? data.picks : [];
+    const targetHit = state.premiumCollected >= Portfolio.PREMIUM_TARGET;
 
-    // Build post content
-    let post = `TDPro Puts — ${dateStr}\n\n`;
-    post += `Portfolio: ${Portfolio.formatCurrency(state.startingCapital)} | `;
-    post += `Deployed: ${Portfolio.formatCurrency(state.capitalDeployed)} (${state.allocationPct.toFixed(0)}%) | `;
-    post += `Premium Banked: ${Portfolio.formatCurrency(state.premiumCollected)}\n\n`;
+    container.innerHTML = `
+      <div style="margin-bottom:20px">
+        <div class="metric-label" style="margin-bottom:8px;color:var(--cyan)">MY PICK THIS WEEK</div>
+        <textarea id="myPickNote" class="form-input" rows="4" placeholder="e.g. Going with ONDS — RSI 52, IV crushed after the announcement, $10 put at $0.45 gives me 4.55% ROC with only 10% port allocation. If I get assigned at $9.55 net I'm happy to wheel it..."
+          style="width:100%;resize:vertical;font-size:0.8rem;line-height:1.5">${_savedNote()}</textarea>
+        <div class="form-hint">This note drops into the post as your commentary. Edit freely.</div>
+      </div>
 
-    if (state.premiumCollected >= Portfolio.PREMIUM_TARGET) {
-      post += `🎯 PREMIUM TARGET HIT! ${Portfolio.formatCurrency(state.premiumCollected)} collected (${Portfolio.formatPct(state.weeklyROC)} ROC). Pausing to reassess.\n\n`;
+      <div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" type="button" onclick="Substack.generate()">⚡ Generate Post</button>
+        <div class="form-hint" style="align-self:center">All picks are free this week 🎉</div>
+      </div>
+
+      <div id="generatedPost" style="display:none">
+        <div class="export-preview" id="exportText"></div>
+        <div class="export-actions" style="margin-top:12px">
+          <button class="btn btn-primary" type="button" onclick="Substack.copy()">📋 Copy to Clipboard</button>
+          <button class="btn btn-ghost" type="button" onclick="Substack.download()">⬇ Download .txt</button>
+        </div>
+      </div>`;
+
+    // Auto-save note on type
+    document.getElementById('myPickNote').addEventListener('input', (e) => {
+      try { localStorage.setItem('decay_derby_pick_note', e.target.value); } catch(_) {}
+    });
+  }
+
+  function _savedNote() {
+    try { return localStorage.getItem('decay_derby_pick_note') || ''; } catch(_) { return ''; }
+  }
+
+  function generate() {
+    const state = Portfolio.getState();
+    const data = Screener.getData();
+    const picks = data ? data.picks : [];
+    const dateStr = data ? data.date : App.localDateStr();
+    const note = document.getElementById('myPickNote')?.value?.trim() || '';
+    const targetHit = state.premiumCollected >= Portfolio.PREMIUM_TARGET;
+
+    let post = `TDPro Puts All Week! — ${dateStr}\n\n`;
+
+    // My Pick commentary
+    if (note) {
+      post += `🎯 My Pick This Week\n\n${note}\n\n`;
+      post += `---\n\n`;
     }
 
-    post += `---\n\n`;
-    post += `Today's Picks (from TDPro CSP Screener)\n\n`;
+    // Port summary
+    post += `Portfolio Snapshot\n\n`;
+    post += `• Starting capital: ${Portfolio.formatCurrency(state.startingCapital)}\n`;
+    post += `• Deployed: ${Portfolio.formatCurrency(state.capitalDeployed)} (${state.allocationPct.toFixed(0)}%)\n`;
+    post += `• Premium banked: ${Portfolio.formatCurrency(state.premiumCollected)}\n`;
+    post += `• Weekly target: ${Portfolio.formatCurrency(Portfolio.PREMIUM_TARGET)} (1% of port)\n\n`;
+
+    if (targetHit) {
+      post += `🏆 WEEKLY TARGET HIT! ${Portfolio.formatCurrency(state.premiumCollected)} collected (${state.weeklyROC ? state.weeklyROC.toFixed(2) : '?'}% ROC). Pausing to reassess.\n\n`;
+    }
+
+    post += `---\n\nToday's Picks (from TDPro CSP Screener) — ALL FREE THIS WEEK 🎉\n\n`;
 
     picks.forEach((p, i) => {
-      const free = i < 3;
-      if (free) {
-        post += `${i + 1}. ${p.symbol} — $${p.price.toFixed(2)}\n`;
-        post += `   Sell ${p.strike} Put, ${p.expiry} (${p.dte} DTE)\n`;
-        post += `   Premium: $${p.premium.toFixed(2)} | ROC: ${p.weekly_roc.toFixed(2)}%/wk | Capital: $${p.capital_required}\n`;
-        post += `   Score: ${p.score.toFixed(0)} | RSI: ${p.rsi.toFixed(0)} | Sector: ${p.sector}\n\n`;
-      } else {
-        post += `${i + 1}. [PREMIUM] ${p.symbol} — Subscribe for this pick!\n\n`;
-      }
+      const collateral = p.collateral || (p.strike * 100);
+      post += `${i + 1}. ${p.symbol} — $${p.price.toFixed(2)}\n`;
+      post += `   Sell ${p.strike} Put, exp ${p.expiry} (${p.dte} DTE)\n`;
+      post += `   Premium: $${p.premium.toFixed(2)} | ROC: ${p.weekly_roc.toFixed(2)}%/wk | Collateral: $${collateral.toFixed(0)}\n`;
+      post += `   Score: ${p.score} | Grade: ${p.grade} | RSI: ${p.rsi.toFixed(0)} | IV: ${p.iv || '?'}% | Sector: ${p.sector}\n\n`;
     });
 
     post += `---\n\n`;
 
-    // Active positions update
+    // Active positions
     if (state.activeTrades.length > 0) {
-      post += `Active Positions:\n\n`;
+      post += `Active Positions\n\n`;
       state.activeTrades.forEach(t => {
-        post += `• ${t.symbol} ${t.strike}P exp ${t.expiry} — Premium: $${(t.premium * 100).toFixed(0)} (${((t.premium * 100 / t.collateral) * 100).toFixed(1)}% ROC)\n`;
+        post += `• ${t.symbol} ${t.strike}P exp ${t.expiry} — $${(t.premium * 100).toFixed(0)} premium (${((t.premium * 100 / t.collateral) * 100).toFixed(1)}% ROC)\n`;
       });
       post += `\n`;
     }
 
-    // Closed trades this week
+    // Closed this week
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
     const recentClosed = state.closedTrades.filter(t => t.closedAt > weekAgo);
     if (recentClosed.length > 0) {
-      post += `This Week's Results:\n\n`;
+      post += `This Week's Results\n\n`;
       recentClosed.forEach(t => {
         const icon = t.status === 'won' ? '✅' : t.status === 'assigned' ? '📦' : '❌';
         post += `${icon} ${t.symbol} ${t.strike}P — ${t.status.toUpperCase()}\n`;
@@ -59,20 +103,14 @@ const Substack = (() => {
       post += `\n`;
     }
 
-    post += `---\n\nNot financial advice. $10K port, selling puts, tracking the wheel. Follow along at traderdaddy.pro\n`;
+    post += `---\n\nNot financial advice. $10K port, selling puts, tracking the wheel.\nFollow along at traderdaddy.pro\n`;
 
-    container.innerHTML = `
-      <div class="export-preview" id="exportText">${escapeHtml(post)}</div>
-      <div class="export-actions">
-        <button class="btn btn-primary" onclick="Substack.copy()">📋 Copy to Clipboard</button>
-        <button class="btn btn-ghost" onclick="Substack.download()">⬇ Download .txt</button>
-      </div>
-      <div style="margin-top:16px">
-        <div class="form-hint">
-          First 3 picks shown free. Picks 4-5 locked behind "premium" paywall text.
-          Edit as needed before posting to Substack.
-        </div>
-      </div>`;
+    const el = document.getElementById('exportText');
+    el.textContent = post;
+
+    const wrapper = document.getElementById('generatedPost');
+    wrapper.style.display = 'block';
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function escapeHtml(str) {
@@ -80,7 +118,7 @@ const Substack = (() => {
   }
 
   function copy() {
-    const text = document.getElementById('exportText').textContent;
+    const text = document.getElementById('exportText')?.textContent || '';
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.querySelector('.export-actions .btn-primary');
       btn.textContent = '✅ Copied!';
@@ -89,15 +127,15 @@ const Substack = (() => {
   }
 
   function download() {
-    const text = document.getElementById('exportText').textContent;
+    const text = document.getElementById('exportText')?.textContent || '';
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tdpro-puts-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `tdpro-puts-${App.localDateStr()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  return { render, copy, download };
+  return { render, generate, copy, download };
 })();
