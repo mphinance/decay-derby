@@ -61,7 +61,7 @@ const Substack = (() => {
 
     // Port summary
     post += `Portfolio Snapshot\n\n`;
-    post += `• Starting capital: ${Portfolio.formatCurrency(state.startingCapital)}\n`;
+    post += `• Portfolio Value: ${Portfolio.formatCurrency(state.currentCapital)}\n`;
     post += `• Deployed: ${Portfolio.formatCurrency(state.capitalDeployed)} (${state.allocationPct.toFixed(0)}%)\n`;
     post += `• Premium banked: ${Portfolio.formatCurrency(state.premiumCollected)}\n`;
     post += `• Weekly target: ${Portfolio.formatCurrency(Portfolio.PREMIUM_TARGET)} (1% of port)\n\n`;

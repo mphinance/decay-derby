@@ -60,6 +60,7 @@ const Portfolio = (() => {
 
     return {
       startingCapital: STARTING_CAPITAL,
+      currentCapital: STARTING_CAPITAL + premiumCollected,
       capitalDeployed,
       availableCapital,
       allocationPct,

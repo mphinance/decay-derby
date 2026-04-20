@@ -98,7 +98,7 @@ const App = (() => {
     document.getElementById('dashMetrics').innerHTML = `
       <div class="metric-card accent-cyan">
         <div class="metric-label">Portfolio Value</div>
-        <div class="metric-value value-neutral">${Portfolio.formatCurrency(state.startingCapital)}</div>
+        <div class="metric-value value-neutral">${Portfolio.formatCurrency(state.currentCapital)}</div>
         <div class="metric-sub">${Portfolio.formatCurrency(state.capitalDeployed)} deployed</div>
       </div>
 
