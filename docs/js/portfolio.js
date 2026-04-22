@@ -33,14 +33,14 @@ const Portfolio = (() => {
   function getState() {
     const trades = Tracker.getTrades();
     const active = trades.filter(t => t.status === 'active' || t.status === 'assigned');
-    const closed = trades.filter(t => t.status === 'won' || t.status === 'loss' || t.status === 'closed');
+    const closed = trades.filter(t => ['won', 'loss', 'closed', 'assigned'].includes(t.status));
 
     const capitalDeployed = active.reduce((sum, t) => sum + (t.collateral || 0), 0);
     const availableCapital = STARTING_CAPITAL - capitalDeployed;
     const allocationPct = (capitalDeployed / STARTING_CAPITAL) * 100;
 
     const premiumCollected = trades
-      .filter(t => ['won', 'closed', 'assigned'].includes(t.status))
+      .filter(t => ['won', 'loss', 'closed', 'assigned'].includes(t.status))
       .reduce((sum, t) => {
         if (t.pnl !== undefined) return sum + t.pnl;
         // Fallback for older trades without pnl calculated

@@ -218,11 +218,16 @@ const App = (() => {
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
     const weekTrades = Tracker.getTrades().filter(t => t.openedAt > weekAgo);
     const weekWins = weekTrades.filter(t => t.status === 'won');
-    const weekPremium = weekWins.reduce((s, t) => s + t.premium * (t.contracts || 1) * 100, 0);
+    const weekClosed = weekTrades.filter(t => ['won', 'loss', 'closed', 'assigned'].includes(t.status));
+    const weekPremium = weekClosed.reduce((s, t) => {
+      if (t.pnl !== undefined) return s + t.pnl;
+      const closeCost = t.closePrice ? (t.closePrice * (t.contracts || 1) * 100) : 0;
+      return s + (t.premium * (t.contracts || 1) * 100) - closeCost - (t.fees || 0);
+    }, 0);
 
     // Build cumulative premium mini-chart
     const allTrades = Tracker.getTrades()
-      .filter(t => t.status === 'won' || t.status === 'closed')
+      .filter(t => ['won', 'loss', 'closed', 'assigned'].includes(t.status))
       .sort((a, b) => (a.closedAt || a.openedAt).localeCompare(b.closedAt || b.openedAt));
 
     let chartHtml = '';
@@ -230,7 +235,13 @@ const App = (() => {
       let cumulative = 0;
       const maxTarget = Math.max(Portfolio.PREMIUM_TARGET, state.premiumCollected * 1.2);
       const bars = allTrades.map(t => {
-        const prem = t.premium * (t.contracts || 1) * 100;
+        let prem = 0;
+        if (t.pnl !== undefined) {
+          prem = t.pnl;
+        } else {
+          const closeCost = t.closePrice ? (t.closePrice * (t.contracts || 1) * 100) : 0;
+          prem = (t.premium * (t.contracts || 1) * 100) - closeCost - (t.fees || 0);
+        }
         cumulative += prem;
         const heightPct = Math.min((cumulative / maxTarget) * 100, 100);
         const date = (t.closedAt || t.openedAt || '').slice(5, 10);
