@@ -540,7 +540,7 @@ const Tracker = (() => {
   // Export / Import / Showcase
   async function loadTDPortfolio() {
     try {
-      const res = await fetch('data/portfolio.json');
+      const res = await fetch('data/portfolio.json?t=' + Date.now());
       if (!res.ok) throw new Error('Failed to load portfolio.json');
       const data = await res.json();
       if (Array.isArray(data)) {
