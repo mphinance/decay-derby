@@ -48,9 +48,12 @@
     "contracts": 1,
     "fees": 0.67,
     "openedAt": "2026-04-21T14:30:00.000Z",
-    "status": "active",
+    "status": "won",
     "type": "CSP",
-    "collateral": 950
+    "collateral": 950,
+    "closedAt": "2026-04-24T16:00:00.000Z",
+    "closeReason": "expired",
+    "pnl": 14.33
   },
   {
     "id": "uamy_apr24_2",
@@ -63,9 +66,12 @@
     "contracts": 1,
     "fees": 0.52,
     "openedAt": "2026-04-21T14:35:00.000Z",
-    "status": "active",
+    "status": "won",
     "type": "CSP",
-    "collateral": 950
+    "collateral": 950,
+    "closedAt": "2026-04-24T16:00:00.000Z",
+    "closeReason": "expired",
+    "pnl": 9.48
   },
   {
     "id": "nok_apr24_1",
@@ -116,9 +122,12 @@
     "contracts": 1,
     "fees": 0.67,
     "openedAt": "2026-04-23T14:30:00.000Z",
-    "status": "active",
+    "status": "assigned",
     "type": "CSP",
-    "collateral": 1250
+    "collateral": 1250,
+    "closedAt": "2026-04-24T16:00:00.000Z",
+    "closeReason": "assigned",
+    "pnl": 25.33
   },
   {
     "id": "rcat_apr24_2",
@@ -131,9 +140,12 @@
     "contracts": 1,
     "fees": 0.67,
     "openedAt": "2026-04-23T14:40:00.000Z",
-    "status": "active",
+    "status": "assigned",
     "type": "CSP",
-    "collateral": 1250
+    "collateral": 1250,
+    "closedAt": "2026-04-24T16:00:00.000Z",
+    "closeReason": "assigned",
+    "pnl": 16.33
   },
   {
     "id": "onds_may01_1",
