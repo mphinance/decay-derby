@@ -104,5 +104,11 @@ python csp_scanner.py --dry-run
 
 ---
 
+## Roadmap
+
+- **Automated Portfolio Sync:** Develop `screener/portfolio_updater.py` and attach to `daily_screener.yml` to automatically verify expired options against market closes, marking options as "won" or "assigned" automatically without manual dashboard clicks.
+
+---
+
 *Not financial advice. Just a guy selling puts and tracking it publicly.*  
 *Follow along on [Substack](https://mphinance.substack.com)*
