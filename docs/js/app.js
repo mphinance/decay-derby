@@ -193,11 +193,10 @@ const App = (() => {
               <div style="display:flex;align-items:center;gap:10px">
                 <span class="trade-ticker">${t.symbol}</span>
                 <span class="sector-badge ${Portfolio.getSectorClass(t.sector)}">${(t.sector || '').split(' ')[0]}</span>
-                <span class="trade-status status-active">${t.type || 'CSP'}</span>
+                <span class="trade-status ${t.status === 'assigned' ? 'status-assigned' : 'status-active'}">${t.status === 'assigned' ? 'ASSIGNED' : (t.type || 'CSP')}</span>
               </div>
-              <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:${daysLeft <= 3 ? 'var(--gold)' : 'var(--text-secondary)'}">
-                ${daysLeft > 0 ? daysLeft + 'd left' : 'EXPIRING'}
-                ${daysLeft <= 0 ? ' <span class="pulse">⏰</span>' : ''}
+              <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:${t.status === 'assigned' ? 'var(--text-secondary)' : (daysLeft < 0 ? 'var(--red)' : (daysLeft === 0 ? 'var(--gold)' : 'var(--text-secondary)'))}">
+                ${t.status === 'assigned' ? 'AWAITING CC' : (daysLeft > 0 ? daysLeft + 'd left' : (daysLeft === 0 ? 'EXPIRING <span class="pulse">⏰</span>' : 'EXPIRED 🚨'))}
               </div>
             </div>
             <div class="trade-meta">
@@ -208,7 +207,11 @@ const App = (() => {
               <div class="trade-meta-item"><span class="trade-meta-label">Port</span> ${portPct}%</div>
             </div>
             <div class="trade-actions">
-              <button class="btn btn-sm btn-primary" onclick="Tracker.showActionModal('${t.id}')">Update</button>
+              ${t.status === 'assigned' 
+                ? `<button class="btn btn-sm btn-success" onclick="Tracker.assignTrade('${t.id}')">Sell CC</button>
+                   <button class="btn btn-sm btn-ghost" onclick="Tracker.resolveAssigned('${t.id}')">Dismiss</button>`
+                : `<button class="btn btn-sm btn-primary" onclick="Tracker.showActionModal('${t.id}')">Update</button>`
+              }
             </div>
           </div>`;
       }).join('');

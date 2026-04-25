@@ -116,21 +116,35 @@ const Tracker = (() => {
     const trade = getTrades().find(t => t.id === id);
     if (!trade) return null;
 
-    const pnl = (trade.premium * 100 * trade.contracts) - (trade.fees || 0);
-    
-    // Mark CSP as assigned
-    updateTrade(id, {
-      status: 'assigned',
-      closedAt: new Date().toISOString(),
-      closeReason: 'assigned',
-      pnl,
-    });
+    if (trade.status !== 'assigned') {
+      const pnl = (trade.premium * 100 * trade.contracts) - (trade.fees || 0);
+      
+      // Mark CSP as assigned
+      updateTrade(id, {
+        status: 'assigned',
+        closedAt: new Date().toISOString(),
+        closeReason: 'assigned',
+        pnl,
+      });
+    }
 
     // Auto-transition: open Covered Call template for this symbol
     // Strike defaults to CSP strike (cost basis target)
     _showCoveredCallTemplate(trade);
 
     return trade;
+  }
+
+  function resolveAssigned(id) {
+    const trade = getTrades().find(t => t.id === id);
+    if (!trade || trade.status !== 'assigned') return null;
+
+    updateTrade(id, {
+      status: 'closed',
+      closeReason: 'cc_sold_or_dismissed'
+    });
+    
+    App.refresh();
   }
 
   function _showCoveredCallTemplate(cspTrade) {
@@ -189,6 +203,15 @@ const Tracker = (() => {
     if (!strike || !premium || !expiry) {
       alert('Fill in strike, premium, and expiry');
       return;
+    }
+
+    // Auto-resolve any existing assigned CSP for this symbol
+    const assignedTrade = getTrades().find(t => t.symbol === symbol && t.status === 'assigned');
+    if (assignedTrade) {
+      updateTrade(assignedTrade.id, {
+        status: 'closed',
+        closeReason: 'cc_sold'
+      });
     }
 
     addTrade({
@@ -658,7 +681,7 @@ const Tracker = (() => {
 
   return {
     getTrades, saveTrades, addTrade, updateTrade, deleteTrade,
-    expireTrade, closeTrade, assignTrade, confirmCoveredCall,
+    expireTrade, closeTrade, assignTrade, resolveAssigned, confirmCoveredCall,
     openTradeFromPick, confirmTrade, closeModal,
     showActionModal, showClosePrice, doClose, closeActionModal,
     showManualEntry, confirmManual, showEditModal, saveTradeEdit,
