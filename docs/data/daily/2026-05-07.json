@@ -1,0 +1,45 @@
+{
+  "date": "2026-05-07",
+  "generated_at": "2026-05-07T12:16:04Z",
+  "portfolio": {
+    "starting_capital": 10000,
+    "target_premium": 100.0
+  },
+  "picks": [
+    {
+      "symbol": "QBTS",
+      "name": "D-Wave Quantum Inc.",
+      "sector": "Electronic Technology",
+      "price": 23.83,
+      "rsi": 70,
+      "atr_pct": 6.5,
+      "rel_vol": 1.16,
+      "strike": 23.0,
+      "premium": 1.48,
+      "expiry": "2026-05-15",
+      "dte": 8,
+      "weekly_roc": 5.63,
+      "port_alloc": 23.0,
+      "collateral": 2300.0,
+      "delta": -0.09,
+      "iv": 127.1,
+      "volume": 505,
+      "open_interest": 561,
+      "bid": 1.42,
+      "ask": 1.53,
+      "spread": 0.11,
+      "liquidity_warn": false,
+      "score": 10,
+      "reasons": [
+        "ATR 6.5% (very high vol)",
+        "RelVol 1.16x (normal)"
+      ],
+      "grade": "B"
+    }
+  ],
+  "stats": {
+    "total_candidates": 48,
+    "picks_found": 1,
+    "avg_weekly_roc": 5.63
+  }
+}
