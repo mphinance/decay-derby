@@ -1,0 +1,45 @@
+{
+  "date": "2026-07-14",
+  "generated_at": "2026-07-14T11:52:00Z",
+  "portfolio": {
+    "starting_capital": 10000,
+    "target_premium": 100.0
+  },
+  "picks": [
+    {
+      "symbol": "PSNY",
+      "name": "Polestar Automotive Holding UK ",
+      "sector": "Retail Trade",
+      "price": 18.01,
+      "rsi": 41,
+      "atr_pct": 7.93,
+      "rel_vol": 0.58,
+      "strike": 16.0,
+      "premium": 1.7,
+      "expiry": "2026-07-17",
+      "dte": 3,
+      "weekly_roc": 24.78,
+      "port_alloc": 16.0,
+      "collateral": 1600.0,
+      "delta": -0.28,
+      "iv": 366.0,
+      "volume": 7,
+      "open_interest": 7,
+      "bid": 0.1,
+      "ask": 3.3,
+      "spread": 3.2,
+      "liquidity_warn": true,
+      "score": 8,
+      "reasons": [
+        "RSI 41 (below midline)",
+        "ATR 7.93% (very high vol)"
+      ],
+      "grade": "C"
+    }
+  ],
+  "stats": {
+    "total_candidates": 48,
+    "picks_found": 1,
+    "avg_weekly_roc": 24.78
+  }
+}
