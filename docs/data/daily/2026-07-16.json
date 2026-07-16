@@ -1,0 +1,44 @@
+{
+  "date": "2026-07-16",
+  "generated_at": "2026-07-16T11:57:54Z",
+  "portfolio": {
+    "starting_capital": 10000,
+    "target_premium": 100.0
+  },
+  "picks": [
+    {
+      "symbol": "SOFI",
+      "name": "SoFi Technologies, Inc.",
+      "sector": "Finance",
+      "price": 17.87,
+      "rsi": 50,
+      "atr_pct": 5.26,
+      "rel_vol": 0.82,
+      "strike": 17.5,
+      "premium": 0.43,
+      "expiry": "2026-07-24",
+      "dte": 8,
+      "weekly_roc": 2.15,
+      "port_alloc": 17.5,
+      "collateral": 1750.0,
+      "delta": -0.05,
+      "iv": 53.9,
+      "volume": 2153,
+      "open_interest": 5012,
+      "bid": 0.42,
+      "ask": 0.44,
+      "spread": 0.02,
+      "liquidity_warn": false,
+      "score": 6,
+      "reasons": [
+        "ATR 5.26% (very high vol)"
+      ],
+      "grade": "C"
+    }
+  ],
+  "stats": {
+    "total_candidates": 48,
+    "picks_found": 1,
+    "avg_weekly_roc": 2.15
+  }
+}
