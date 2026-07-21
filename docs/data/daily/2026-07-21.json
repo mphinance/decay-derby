@@ -1,0 +1,14 @@
+{
+  "date": "2026-07-21",
+  "generated_at": "2026-07-21T12:07:04Z",
+  "portfolio": {
+    "starting_capital": 10000,
+    "target_premium": 100.0
+  },
+  "picks": [],
+  "stats": {
+    "total_candidates": 48,
+    "picks_found": 0,
+    "avg_weekly_roc": 0
+  }
+}
